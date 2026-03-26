@@ -1,5 +1,6 @@
 package com.recipe_maker.backend.users;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -51,6 +52,22 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
+    /** Enabled status for user account. */
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    /** Locked status for the user account. */
+    @Column(nullable = false)
+    private boolean accountNonLocked = true;
+
+    /** Value tracking number of consecutive failed login attempts.  */
+    @Column(nullable = false)
+    private int failedLoginAttempts = 0;
+
+    /** Time when the account will be unlocked. */
+    @Column
+    private Instant lockedUntil;
+
     /** The roles of the user. */
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -60,11 +77,40 @@ public class User implements UserDetails {
     )
     private Set<Role> roles = new HashSet<>();
 
+    /**
+     * Return granted authorities for user based on the stored Role objects.
+     * 
+     * @return Collection of GrantedAuthority objects
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return this.getRoles()
             .stream()
             .map(role -> new SimpleGrantedAuthority(role.getName().name()))
             .collect(Collectors.toSet());
+    }
+
+    /**
+     * Determine if the user account is enabled.
+     * 
+     * @return boolean true if the account is enabled, false if it is disabled
+     */
+    @Override
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+    /**
+     * Check if the account is locked, taking into account the account lock expiration time.
+     * 
+     * @return boolean true if the account is not locked, false if it is 
+     */
+    @Override
+    public boolean isAccountNonLocked() {
+        if (lockedUntil != null && Instant.now().isAfter(lockedUntil)) {
+            return true;
+        }
+
+        return accountNonLocked;
     }
 }

@@ -37,7 +37,14 @@ public class UserTestUtils implements TestUtils<User, UserDTO> {
         Set<Role> roles = new HashSet<>(roleTestUtils.createEntityList(2));
 
 
-        return new User(id, username, password, email, roles);
+        User user = new User();
+        user.setId(id);
+        user.setUsername(username);
+        user.setPassword(password);
+        user.setEmail(email);
+        user.setRoles(roles);
+
+        return user;
     }
 
     /**
@@ -57,9 +64,8 @@ public class UserTestUtils implements TestUtils<User, UserDTO> {
         String username = faker.credentials().username();
         String email = faker.internet().emailAddress();
         String password = faker.credentials().password(8, 16);
-        Set<RoleDTO> roles = new HashSet<>(roleTestUtils.createDTOList(2));
 
-        return new UserDTO(username, password, email, roles);
+        return new UserDTO(username, password, email);
     }
 
     /**

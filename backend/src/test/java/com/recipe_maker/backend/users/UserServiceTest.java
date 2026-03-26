@@ -326,8 +326,8 @@ public class UserServiceTest {
         // Set up the mock authenticationManager to return null (indicating successful authentication)
         when(authenticationManager.authenticate(any())).thenReturn(null);
         when(userRepository.findByUsername(any())).thenReturn(Optional.of(user));
-        when(jwtService.generateAccessToken(any())).thenReturn(token);
-        when(jwtService.generateRefreshToken(any())).thenReturn(token);
+        when(jwtService.generateAccessToken(any(), any())).thenReturn(token);
+        when(jwtService.generateRefreshToken(any(), any())).thenReturn(token);
         when(jwtService.getRefreshTokenExpiration()).thenReturn(faker.number().randomNumber());
         doNothing().when(refreshTokenRepository).deleteByUser(any());
         when(refreshTokenRepository.save(any())).thenReturn(refreshTokenEntity);
@@ -337,8 +337,8 @@ public class UserServiceTest {
 
         // Verify that the authenticationManager's authenticate method was called with the expected authentication token
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtService, times(1)).generateAccessToken(any());
-        verify(jwtService, times(1)).generateRefreshToken(any());
+        verify(jwtService, times(1)).generateAccessToken(any(), any());
+        verify(jwtService, times(1)).generateRefreshToken(any(), any());
         verify(refreshTokenRepository, times(1)).deleteByUser(any());
         verify(refreshTokenRepository, times(1)).save(any());
         
@@ -368,8 +368,8 @@ public class UserServiceTest {
 
         // Verify that the authenticationManager's authenticate method was called with the expected authentication token
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtService, never()).generateAccessToken(any());
-        verify(jwtService, never()).generateRefreshToken(any());
+        verify(jwtService, never()).generateAccessToken(any(), any());
+        verify(jwtService, never()).generateRefreshToken(any(), any());
         verify(refreshTokenRepository, never()).deleteByUser(any());
         verify(refreshTokenRepository, never()).save(any());
     }
@@ -384,6 +384,9 @@ public class UserServiceTest {
     void testRefresh() {
         // Create a LoginDTO and RefreshTokenDTO with test data
         LoginDTO loginDTO = authenticationTestUtils.createLoginDTO();
+        User user = userTestUtils.createEntity();
+        user.setUsername(loginDTO.getUsername());
+        user.setPassword(loginDTO.getPassword());
 
         // Create new RefreshToken for testing
         RefreshToken refreshToken = authenticationTestUtils.createRefreshToken();
@@ -397,18 +400,19 @@ public class UserServiceTest {
 
         // Set up the mock jwtService to validate the token and extract the username, as well as generate new tokens
         when(refreshTokenRepository.findByToken(any())).thenReturn(Optional.of(refreshToken));
+        when(userRepository.findByUsername(any())).thenReturn(Optional.of(user));
         when(jwtService.isTokenValid(any())).thenReturn(true);
         when(jwtService.extractUsername(any())).thenReturn(loginDTO.getUsername());
-        when(jwtService.generateAccessToken(any())).thenReturn(token);
-        when(jwtService.generateRefreshToken(any())).thenReturn(token);
+        when(jwtService.generateAccessToken(any(), any())).thenReturn(token);
+        when(jwtService.generateRefreshToken(any(), any())).thenReturn(token);
 
         // Call the refresh method and capture the response
         TokenResponseDTO response = userService.refresh(refreshTokenDTO);
         // Verify that the jwtService's isTokenValid and extractUsername methods were called with the expected token
         verify(refreshTokenRepository, times(1)).findByToken(any());
         verify(refreshTokenRepository, times(1)).delete(any());
-        verify(jwtService, times(1)).generateAccessToken(any());
-        verify(jwtService, times(1)).generateRefreshToken(any());
+        verify(jwtService, times(1)).generateAccessToken(any(), any());
+        verify(jwtService, times(1)).generateRefreshToken(any(), any());
 
         // Assert that the access and refresh tokens in the response match the expected token
         assertEquals(token, response.getAccessToken());
@@ -432,7 +436,7 @@ public class UserServiceTest {
 
         // Verify that the jwtService's isTokenValid method was called with the expected token, and that the extractUsername, generateAccessToken, and generateRefreshToken methods were not called
         verify(refreshTokenRepository, never()).save(any());
-        verify(jwtService, never()).generateRefreshToken(any());
+        verify(jwtService, never()).generateRefreshToken(any(), any());
     }
 
     /**
@@ -458,7 +462,31 @@ public class UserServiceTest {
 
         // Verify that the jwtService's isTokenValid method was called with the expected token, and that the extractUsername, generateAccessToken, and generateRefreshToken methods were not called
         verify(refreshTokenRepository, never()).save(any());
-        verify(jwtService, never()).generateRefreshToken(any());
+        verify(jwtService, never()).generateRefreshToken(any(), any());
+    }
+
+    /**
+     * Tests the refresh method of UserService to ensure that an invalid username results in an UsernameNotFound exception.
+     * @throws UsernameNotFoundException if the refresh token is invalid
+     */
+    @Test
+    void testRefreshUserNotFound() {
+        // Create a RefreshToken with test data and a matching RefreshTokenDTO
+        RefreshToken refreshToken = authenticationTestUtils.createRefreshToken();
+
+        // Create new RefreshTokenDTO from RefreshToken test instance
+        RefreshTokenDTO refreshTokenDTO = new RefreshTokenDTO(refreshToken.getToken());
+
+        // Set up the mock jwtService to return false for token validation
+        when(refreshTokenRepository.findByToken(any())).thenReturn(Optional.of(refreshToken));
+        when(userRepository.findByUsername(any())).thenReturn(Optional.empty());
+
+        // Call the refresh method and assert that an IllegalArgumentException is thrown due to the invalid token
+        assertThrows(UsernameNotFoundException.class, () -> userService.refresh(refreshTokenDTO));
+
+        // Verify that the jwtService's isTokenValid method was called with the expected token, and that the extractUsername, generateAccessToken, and generateRefreshToken methods were not called
+        verify(refreshTokenRepository, never()).save(any());
+        verify(jwtService, never()).generateRefreshToken(any(), any());
     }
 
     /**

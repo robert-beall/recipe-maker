@@ -1,6 +1,7 @@
 package com.recipe_maker.backend.authentication;
 
 import java.util.Date;
+import java.util.Set;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
@@ -45,8 +46,8 @@ public class JwtService {
      * @param username The username for which to generate the token.
      * @return Generated JWT access token as a String.
      */
-    public String generateAccessToken(String username) {
-        return generateToken(username, accessTokenExpiration);
+    public String generateAccessToken(String username, Set<String> roles) {
+        return generateToken(username, roles, accessTokenExpiration);
     }
 
     /**
@@ -54,8 +55,8 @@ public class JwtService {
      * @param username The username for which to generate the token.
      * @return Generated JWT refresh token as a String.
      */
-    public String generateRefreshToken(String username) {
-        return generateToken(username, refreshTokenExpiration);
+    public String generateRefreshToken(String username, Set<String> roles) {
+        return generateToken(username, roles, refreshTokenExpiration);
     }
 
     /**
@@ -64,10 +65,11 @@ public class JwtService {
      * @param expiration The expiration time for the token.
      * @return Generated JWT token as a String.
      */
-    protected String generateToken(String username, long expiration) {
+    protected String generateToken(String username, Set<String> roles, long expiration) {
         // Set the issued at and expiration times for the token
         return Jwts.builder()
             .subject(username)
+            .claim("roles", roles)
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + expiration))
             .signWith(getSigningKey())

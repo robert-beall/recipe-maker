@@ -1,11 +1,6 @@
 package com.recipe_maker.backend.users;
 
-import java.util.Set;
-
-import com.recipe_maker.backend.roles.RoleDTO;
-
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -32,8 +27,4 @@ public class UserDTO {
     @NotNull
     @Email
     private String email;
-    
-    /** The roles of the user. */
-    @NotEmpty
-    private Set<RoleDTO> role;
 }

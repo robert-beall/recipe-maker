@@ -2,6 +2,7 @@ package com.recipe_maker.backend.users;
 
 import java.time.Instant;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -132,12 +133,18 @@ public class UserService {
         // If authentication is successful, retrieve the user and generate tokens
         User user = userRepository.findByUsername(loginDTO.getUsername())
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Parse the user roles as a Set<String>
+        Set<String> roles = user.getRoles()
+                .stream()
+                .map(role -> role.getName().name())
+                .collect(Collectors.toSet());
         
         // delete any existing refresh tokens for this user
         refreshTokenRepository.deleteByUser(user);
 
         // Generate a new refresh token and save it to the database
-        String rawRefreshToken = jwtService.generateRefreshToken(loginDTO.getUsername());
+        String rawRefreshToken = jwtService.generateRefreshToken(loginDTO.getUsername(), roles);
 
         // Create a new RefreshToken entity and save it to the database
         RefreshToken refreshToken = new RefreshToken();
@@ -148,7 +155,7 @@ public class UserService {
 
         // Generate and return the access and refresh tokens for the authenticated user
         return new TokenResponseDTO(
-            jwtService.generateAccessToken(loginDTO.getUsername()),
+            jwtService.generateAccessToken(loginDTO.getUsername(), roles),
             rawRefreshToken
         );
     }
@@ -176,9 +183,19 @@ public class UserService {
         // If the refresh token is valid, generate a new access token and refresh token
         String username = stored.getUser().getUsername();
 
+        // If authentication is successful, retrieve the user and generate tokens
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Parse the user roles as a Set<String>
+        Set<String> roles = user.getRoles()
+                .stream()
+                .map(role -> role.getName().name())
+                .collect(Collectors.toSet());
+
         // rotate the refresh token — issue a new one each time
         refreshTokenRepository.delete(stored);
-        String newRefreshToken = jwtService.generateRefreshToken(username);
+        String newRefreshToken = jwtService.generateRefreshToken(username, roles);
 
         // Create a new RefreshToken entity and save it to the database
         RefreshToken newStored = new RefreshToken();
@@ -189,7 +206,7 @@ public class UserService {
 
         // Return the new access token and refresh token in a TokenResponseDTO
         return new TokenResponseDTO(
-            jwtService.generateAccessToken(username),
+            jwtService.generateAccessToken(username, roles),
             newRefreshToken
         );
     }
